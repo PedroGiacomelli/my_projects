@@ -2,4 +2,4 @@
 
 Owner: Pedro Augusto Giacomelli Fernandes (Pedro Giacomelli)
 Lattes:
-Areas of interest: AI and ML
+Areas of interest: AI and ML.
