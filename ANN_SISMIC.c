@@ -1,69 +1,80 @@
+#include <msp430.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef unsigned char un_char;
 
-un_char **hidden_layers;
-un_char **hidden_bias; //clean hidden bias
+unsigned int **hidden_layers;
+unsigned int **hidden_bias; //clean hidden bias
 
-void network_initializer(un_char n_inputs, un_char n_hidden_layers, un_char len_hidden_layers, un_char n_outputs);
-void layers_creator(un_char x, un_char *hidden_weights, un_char *hidden_bias_weight);
-void print_hidden_layers(un_char n_hidden_layers, un_char len_hidden_layers);
-uint32_t neuron_activation(un_char *weights, uint32_t *inputs, un_char len_hidden_layers);
-void forward_propagation(uint32_t *inputs, un_char n_hidden_layers, un_char len_hidden_layers, un_char n_outputs, uint32_t *outputs);
-uint32_t ReLu(uint32_t val);
+int network_initializer(unsigned int n_inputs, unsigned int n_hidden_layers, unsigned int len_hidden_layers, unsigned int n_outputs);
+void layers_creator(unsigned int x, unsigned int *hidden_weights, unsigned int *hidden_bias_weight);
+void print_hidden_layers(unsigned int n_hidden_layers, unsigned int len_hidden_layers);
+int32_t neuron_activation(unsigned int *weights, int32_t *inputs, unsigned int len_hidden_layers) ;
+int32_t forward_propagation(int32_t *inputs, unsigned int n_hidden_layers, unsigned int len_hidden_layers, unsigned int n_outputs, int32_t *outputs);
+int32_t ReLu(int32_t val);
+int32_t output_result(int32_t *result, unsigned int len_hidden_layers);
+
 
 
 int main() {
-    un_char n_inputs=8;
-    un_char n_outputs=2;
-    un_char n_hidden_layers=2;
-    un_char len_hidden_layers=15;
-    uint32_t inputs[8]={1,2,3,4,5,6,7,8}; //create a for loop to substitute the manual population
-    uint32_t output[2]={1,2}; // same here
-    network_initializer(n_inputs, n_hidden_layers, len_hidden_layers, n_outputs);
+    unsigned int n_inputs=8;
+    unsigned int n_outputs=2;
+    unsigned int n_hidden_layers=2;
+    unsigned int len_hidden_layers=15;
+    int32_t inputs[8]={1,2,3,4,5,6,7,8}; //create a for loop to substitute the manual population
+    int32_t output[2]={1,2}; // same here
+    int check;
+    int32_t result;
+
+    check=network_initializer(n_inputs, n_hidden_layers, len_hidden_layers, n_outputs);
+    if (!check){
+        // print("Memory allocation ERROR")
+        return 0;
+    }
     print_hidden_layers(n_hidden_layers, len_hidden_layers);
-    forward_propagation(inputs,n_hidden_layers, len_hidden_layers, n_outputs, output);
+    result = forward_propagation(inputs,n_hidden_layers, len_hidden_layers, n_outputs, output);
+
+    output_result(result);
+
     return 0;
 }
 
-void network_initializer(un_char n_inputs, un_char n_hidden_layers, un_char len_hidden_layers, un_char n_outputs) {
-    hidden_layers = (un_char **)malloc(n_hidden_layers * sizeof(un_char *));
-    hidden_bias = (un_char**)malloc(n_hidden_layers * sizeof(un_char *));
+int network_initializer(unsigned int n_inputs, unsigned int n_hidden_layers, unsigned int len_hidden_layers, unsigned int n_outputs) {
+    hidden_layers = (unsigned int **)malloc(n_hidden_layers * sizeof(unsigned int *));
+    hidden_bias = (unsigned int**)malloc(n_hidden_layers * sizeof(unsigned int *));
 
     if (hidden_layers==NULL|| hidden_bias==NULL){
-            printf("ERROR while allocating memory.\n");
-            return;
+            return 0;
         }
 
-    un_char i;
+    unsigned int i;
     for (i = 0; i < n_hidden_layers; i++) {
-        hidden_layers[i] = (un_char *)malloc((len_hidden_layers+1) * sizeof(un_char));
-        hidden_bias[i]=(un_char*)malloc((len_hidden_layers+1) * sizeof(un_char));
+        hidden_layers[i] = (unsigned int *)malloc((len_hidden_layers+1) * sizeof(unsigned int));
+        hidden_bias[i]=(unsigned int*)malloc((len_hidden_layers+1) * sizeof(unsigned int));
 
         if (hidden_layers[i]==NULL || hidden_bias[i]==NULL){
-            printf("ERROR while allocating memory.\n");
-            return;
+            return 0;
         }
         layers_creator(len_hidden_layers, hidden_layers[i], hidden_bias[i]);
     }
+    return 1;
 }
 
-void layers_creator(un_char x, un_char *hidden_weights, un_char *hidden_bias_weight) {
-    un_char i;
+void layers_creator(unsigned int x, unsigned int *hidden_weights, unsigned int *hidden_bias_weight) {
+    unsigned int i;
     for (i = 0; i < x+1; i++) {
         hidden_weights[i] = i;
         hidden_bias_weight[i]=i;
     }
 }
 
-void print_hidden_layers(un_char n_hidden_layers, un_char len_hidden_layers) {
-    un_char i, j;
+void print_hidden_layers(unsigned int n_hidden_layers, unsigned int len_hidden_layers) {
+    unsigned int i, j;
 
     for (i = 0; i < n_hidden_layers; i++) {
         for (j = 0; j < len_hidden_layers+1; j++) {
-            printf("%hhu ", hidden_layers[i][j]);
+            printf("%d ", hidden_layers[i][j]);
         }
         printf("\n");
     }
@@ -72,32 +83,33 @@ void print_hidden_layers(un_char n_hidden_layers, un_char len_hidden_layers) {
 
     for (i = 0; i < n_hidden_layers; i++) {
         for (j = 0; j < len_hidden_layers+1; j++) {
-            printf("%hhu ", hidden_bias[i][j]);
+            printf("%d ", hidden_bias[i][j]);
         }
         printf("\n");
     }
 }
 
-void forward_propagation(uint32_t *inputs, un_char n_hidden_layers, un_char len_hidden_layers, un_char n_outputs, uint32_t *outputs){
+int32_t forward_propagation(int32_t *inputs, unsigned int n_hidden_layers, unsigned int len_hidden_layers, unsigned int n_outputs, int32_t *outputs){
 
-un_char i,j;
+unsigned int i,j;
+
+int32_t next_inputs[len_hidden_layers];
 for (i=0; i<n_hidden_layers; i++){
-    uint32_t next_inputs[len_hidden_layers];
     for (j=0; j<len_hidden_layers; j++){
-        uint32_t val_activation = neuron_activation(hidden_layers[i], inputs, len_hidden_layers);
-        uint32_t new_output= ReLu(val_activation);
+        int32_t val_activation = neuron_activation(hidden_layers[i], inputs, len_hidden_layers);
+        int32_t new_output= ReLu(val_activation);
         next_inputs[j]=new_output;
     }
     inputs=next_inputs;
 };
-for (i=0; i<n_outputs;i++){
-        outputs[i]=inputs[i];
-}
+
+return inputs;
+
 }
 
-uint32_t neuron_activation(un_char *weights, uint32_t *inputs, un_char len_hidden_layers){
-    uint32_t activation=weights[len_hidden_layers];
-    un_char i;
+int32_t neuron_activation(unsigned int *weights, int32_t *inputs, unsigned int len_hidden_layers){
+    int32_t activation=weights[len_hidden_layers];
+    unsigned int i;
     for (i=0; i<len_hidden_layers; i++){
         activation+= weights[i]*inputs[i];
         //printf("%hhu\n",weights[i]);
@@ -106,9 +118,25 @@ uint32_t neuron_activation(un_char *weights, uint32_t *inputs, un_char len_hidde
     return activation;
 }
 
-uint32_t ReLu(uint32_t val){
+int32_t ReLu(int32_t val){
     if (val<0){
         return 0;
     }
     return val;
 }
+
+int32_t output_result(int32_t *result, unsigned int len_hidden_layers){
+
+    char i;
+    int32_t max_info[2]={0,0};
+
+    for (i=0, i<len_hidden_layers, i++){
+        if (result[i]> max_val[0]){
+            max_info[0]=result[0];
+            max_info[i]=i
+        }
+    }
+    //define here the function to find the class.
+}
+
+
