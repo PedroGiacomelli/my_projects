@@ -11,7 +11,7 @@
 #define LEN_HIDDEN_LAYERS 15
 
 void network_initializer(long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], char n_inputs, char n_hidden_layers, char len_hidden_layers);
-void forward_propagation(long final_vals[LEN_HIDDEN_LAYERS], long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], unsigned int *inputs, char n_inputs, char n_hidden_layers, char len_hidden_layers, unsigned int *activation_vec);
+void forward_propagation(long temp_vals[LEN_HIDDEN_LAYERS], long final_vals[LEN_HIDDEN_LAYERS], long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], unsigned int *inputs, char n_inputs, char n_hidden_layers, char len_hidden_layers, unsigned int *activation_vec);
 long ReLu(long val);
 char output_result(long *result, char len_hidden_layers);
 
@@ -23,11 +23,12 @@ int main() {
     char n_inputs=N_INPUTS;
     char n_hidden_layers=N_HIDDEN_LAYERS;
     char len_hidden_layers=LEN_HIDDEN_LAYERS;
-    unsigned int inputs[N_INPUTS]={1,2,3,4,5,6,7,8}; //create a for loop to substitute the manual population
-    unsigned int activation_vec[N_HIDDEN_LAYERS]={2,3};
+    unsigned int inputs[N_INPUTS]={1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023}; // Worst case scenario projected
+    unsigned int activation_vec[N_HIDDEN_LAYERS]={1023, 1023}; // Worst case scenario projected
+    long temp_vals[LEN_HIDDEN_LAYERS];
     long final_vals[LEN_HIDDEN_LAYERS];
+    long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS];
 
-    long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS];//=
     network_initializer(hidden_layers, n_inputs, n_hidden_layers, len_hidden_layers);
 
     char i, j;
@@ -47,7 +48,7 @@ int main() {
     }
     */
 
-    forward_propagation(final_vals,hidden_layers, inputs, n_inputs, n_hidden_layers, len_hidden_layers, activation_vec);
+    forward_propagation(temp_vals, final_vals,hidden_layers, inputs, n_inputs, n_hidden_layers, len_hidden_layers, activation_vec);
 
     /*
 
@@ -69,19 +70,21 @@ int main() {
     return 0;
 }
 
+
 void network_initializer(long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], char n_inputs, char n_hidden_layers, char len_hidden_layers) {
     char i,j;
 
     for (i = 0; i < n_hidden_layers; i++) {
         for (j=0; j<LEN_HIDDEN_LAYERS; j++){
 
-            hidden_layers[i][j]=(i+1)*j;
+            hidden_layers[i][j]=128; //Worst case scenario projected
 
         }
     }
 }
 
-void forward_propagation(long final_vals[LEN_HIDDEN_LAYERS], long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], unsigned int *inputs, char n_inputs, char n_hidden_layers, char len_hidden_layers, unsigned int activation_vec[N_HIDDEN_LAYERS]){
+
+void forward_propagation(long temp_vals[LEN_HIDDEN_LAYERS], long final_vals[LEN_HIDDEN_LAYERS], long hidden_layers[N_HIDDEN_LAYERS][LEN_HIDDEN_LAYERS], unsigned int *inputs, char n_inputs, char n_hidden_layers, char len_hidden_layers, unsigned int activation_vec[N_HIDDEN_LAYERS]){
 
 char i,j;
 long activation;
@@ -95,7 +98,7 @@ for (j=0; j<len_hidden_layers; j++){
 
     }
 
-    final_vals[j]=ReLu(activation);
+    temp_vals[j]=ReLu(activation);
 
 }
 
@@ -126,10 +129,10 @@ for (index_hidden_layers=0; index_hidden_layers<n_hidden_layers-1; index_hidden_
 
 
 
-            activation+= final_vals[j]*hidden_layers[index_hidden_layers+1][i];
+            activation+= temp_vals[j]*hidden_layers[index_hidden_layers+1][i];
         }
 
-        hidden_layers[index_hidden_layers+1][i]=ReLu(activation);
+        final_vals[i]=ReLu(activation);
 
     }
 
