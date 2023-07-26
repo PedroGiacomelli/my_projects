@@ -1,0 +1,166 @@
+// Código para a coleta dos dados dos sensores
+// A0 -
+// A1 -
+// A2 -
+// A3 -
+// A4 -
+// A5 -
+
+#include <msp430.h> 
+
+#define ABERTA  1
+#define FECHADA 0
+#define DBC     5000
+
+#define FALSE   0
+#define TRUE    1
+
+#define BR_100K    11  //SMCLK/100K = 11
+#define BR_50K     21  //SMCLK/50K  = 21
+#define BR_10K    105  //SMCLK/10K  = 105
+
+void led_vd(void);
+void led_VD(void);
+void led_vm(void);
+void led_VM(void);
+void gpio_config(void);
+
+void adc_config(void);
+void ta0_config(void);
+
+void usci_a1_config(void);
+void ser_char(char x);
+void ser_str(char *pt);
+void ser_crlf(void);
+void ser_dec8(char x);
+void ser_dec16(unsigned int x);
+
+int mon_pw(void);
+void debounce(int valor);
+
+int main(void){
+
+    WDTCTL = WDTPW | WDTHOLD; // stop watchdog timer
+    ta0_config();
+    adc_config();
+    usci_a1_config();
+    gpio_config();
+
+    unsigned int a0, a1, a2, a3, a4, a5;
+
+    while(1){
+        a0 = ADC12MEM0;
+        a1 = ADC12MEM1;
+        a2 = ADC12MEM2;
+        a3 = ADC12MEM3;
+        a4 = ADC12MEM4;
+        a5 = ADC12MEM5;
+
+        ser_str("TS1S2S3S4S5 ");
+        ser_dec16(a0);
+        ser_char(' ');
+        ser_dec16(a1);
+        ser_char(' ');
+        ser_dec16(a2);
+        ser_char(' ');
+        ser_dec16(a3);
+        ser_char(' ');
+        ser_dec16(a4);
+        ser_char(' ');
+        ser_dec16(a5);
+        ser_crlf();
+    }
+
+    return 0;
+}
+
+void adc_config(void){
+    ADC12CTL0 &= ~ADC12ENC;
+    ADC12CTL0 = ADC12ON;
+    ADC12CTL1 = ADC12CONSEQ_3 | ADC12SHS_1 | ADC12CSTARTADD_0 | ADC12SSEL_3;
+    ADC12MCTL0 = ADC12SREF_0 | ADC12INCH_0;
+    ADC12MCTL1 = ADC12SREF_0 | ADC12INCH_1;
+    ADC12MCTL2 = ADC12SREF_0 | ADC12INCH_2;
+    ADC12MCTL3 = ADC12SREF_0 | ADC12INCH_3;
+    ADC12MCTL4 = ADC12SREF_0 | ADC12INCH_4;
+    ADC12MCTL5 = ADC12EOS | ADC12SREF_0 | ADC12INCH_5;
+    P6SEL |= BIT0|BIT1|BIT2|BIT3|BIT4|BIT5;
+    ADC12CTL0 |= ADC12ENC;
+}
+
+void ta0_config(void){
+    TA0CTL = TASSEL_1 | MC_1;
+    TA0CCTL1 = OUTMOD_6;
+    TA0CCR0 = 1024;
+    TA0CCR1 = TA0CCR0/2;
+}
+
+void led_vd(void) {P4OUT &= ~BIT7;} //Apagar verde
+void led_VD(void) {P4OUT |= BIT7;}  //Acender verde
+void led_vm(void) {P1OUT &= ~BIT0;} //Apagar vermelho
+void led_VM(void) {P1OUT |= BIT0;}  //Acender vermelho
+
+void gpio_config(void){
+    P1DIR |= BIT0;  //Led vermelho
+    P1OUT &= ~BIT0; //Vermelho Apagado
+    P4DIR |= BIT7;  //Led verde
+    P4OUT &= ~BIT7; //Verde Apagado
+}
+
+// USCI_A1: Configurar Serial 1 (MSP <=> PC)
+// P4.4 = TX (MSP ==> PC)
+// P4.5 = RX (MSP <== PC)
+void usci_a1_config(void){
+    UCA1CTL1 = UCSSEL_2 | //SMCLK=1.048.576Hz
+    UCSWRST; //UCSI em Reset
+    UCA1CTL0 = 0; //1 Stop
+    UCA1BRW = 109; //
+    UCA1MCTL=UCBRS_2|UCBRF_0; //UCOS16=0
+
+    P4DIR |= BIT4; //P4.4 saída
+    P4DIR &= ~BIT5; //P4.5 entrada
+    P4SEL |= BIT5 | BIT4; //Selecionar UART
+
+    PMAPKEYID = 0X02D52; //Liberar mapeamentp
+    P4MAP4 = PM_UCA1TXD; //TX
+    P4MAP5 = PM_UCA1RXD; //RX
+
+    UCA1CTL1 &= ~ UCSWRST; //UCSI sai de Reset
+}
+
+void ser_char(char x){
+    while ((UCA1IFG & UCTXIFG)==0);
+    UCA1TXBUF = x;
+}
+
+void ser_str(char *pt){
+    char i=0;
+    while(pt[i]!= '\0') ser_char (pt[i++]);
+}
+
+void ser_crlf(void){
+    ser_char(0xD);
+    ser_char(0xA);
+}
+
+void ser_dec16(unsigned int x){
+    char aux;
+    aux= x/10000;
+    ser_char(0x30 + aux);
+    x-=aux*10000;
+    aux= x/1000;
+    ser_char(0x30 + aux);
+    x-=aux*1000;
+    ser_dec8(x);
+}
+
+void ser_dec8(char x){
+    char aux;
+    aux = x/100;
+    ser_char(0x30 + aux);
+    x-= 100*aux;
+    aux=x/10;
+    ser_char(0x30+aux);
+    x-=10*aux;
+    ser_char(0x30+x);
+}
